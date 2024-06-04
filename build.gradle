@@ -59,6 +59,10 @@ repositories {
         url "https://repo.spongepowered.org/maven/"
     }
 
+    flatDir {
+        dirs "C:\\Users\\mwsch\\IdeaProjects\\FluxAPI\\build\\libs"
+    }
+
     mavenCentral()
 }
 
@@ -102,7 +106,6 @@ dependencies {
 
     // FluxAPI
     gameMod("dev.crmodders:fluxapi:${flux_api_version}")
-    gameMod("dev.crmodders:Flux-Entities:${flux_entities_version}")
 
 }
 
@@ -158,6 +161,7 @@ tasks.register("runQuilt", JavaExec) {
         implementation("org.codeberg.CRModders:cosmic-quilt:${cosmic_quilt_version}")
     }
 
+    ignoreExitValue = true
 
     jvmArgs = [
             "-Dloader.gameJarPath=" + configurations.cosmicreach.asPath, // Defines path to Cosmic Reach

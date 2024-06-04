@@ -22,7 +22,7 @@
     },
 
     "entrypoints": {
-      "main": "org.example.mod.ExampleMod"
+      "init": "net.paxyinc.multiplayer.MultiplayerMod"
     },
 
     "depends": [
@@ -37,5 +37,5 @@
     ]
   },
 
-  "mixin": "example.mixins.json"
+  "mixin": "multiplayer.mixins.json"
 }

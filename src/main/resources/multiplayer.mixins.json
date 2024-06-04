@@ -1,10 +1,9 @@
 {
     "required": true,
     "minVersion": "0.8",
-    "package": "org.example.mod.mixins",
+    "package": "net.paxyinc.multiplayer.mixins",
     "compatibilityLevel": "JAVA_17",
     "mixins": [
-        "MainMenuMixin"
     ],
     "client": [],
     "server": [],
