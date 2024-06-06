@@ -107,6 +107,8 @@ dependencies {
     // FluxAPI
     gameMod("dev.crmodders:fluxapi:${flux_api_version}")
 
+    shadowMe("com.github.Querz:NBT:6.1");
+    shadowMe("io.netty:netty-all:4.1.24.Final")
 }
 
 processResources {
