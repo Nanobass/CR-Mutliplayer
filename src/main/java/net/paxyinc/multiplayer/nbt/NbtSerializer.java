@@ -16,6 +16,20 @@ public class NbtSerializer {
         return outputTag;
     }
 
+    public static <T extends NbtSerializable> T read(CompoundTag tag, Class<T> clazz) {
+        try {
+            T object = (T) clazz.getDeclaredConstructor().newInstance();
+            object.read(tag);
+            return object;
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException("No 0-Arg Constructor", e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException("Constructor not Accessible", e);
+        } catch (InvocationTargetException | InstantiationException ignored) {
+            return null;
+        }
+    }
+
     public static <T extends NbtSerializable> T read(CompoundTag tag) {
         try {
             String className = tag.getString("class");

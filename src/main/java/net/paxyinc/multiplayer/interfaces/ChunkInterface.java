@@ -1,16 +1,20 @@
 package net.paxyinc.multiplayer.interfaces;
 
-import net.paxyinc.multiplayer.entities.BetterEntity;
+import finalforeach.cosmicreach.blocks.BlockState;
+import net.paxyinc.multiplayer.util.ChunkDelta;
 
-import java.util.Map;
-import java.util.UUID;
+import java.util.List;
 
 public interface ChunkInterface {
-    void update(float deltaTime);
 
-    void addEntity(BetterEntity entity);
-    void removeEntity(UUID uuid);
-    BetterEntity getEntity(UUID uuid);
-    Map<UUID, BetterEntity> getEntities();
+    void setBlockStateDirect(BlockState blockState, int localX, int localY, int localZ);
+
+    boolean isChunkModified();
+
+    void setChunkModified(boolean chunkModified);
+
+    boolean hasTooManyChanges();
+
+    List<ChunkDelta> pollChunkChanges();
 
 }

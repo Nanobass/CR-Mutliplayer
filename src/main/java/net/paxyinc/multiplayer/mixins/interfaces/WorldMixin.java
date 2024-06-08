@@ -84,7 +84,7 @@ public class WorldMixin implements WorldInterface {
             player = new Player();
             player.zoneId = defaultZoneId;
             BetterEntity entity = new BetterEntity();
-            entity.savable = false;
+            entity.noClip = true;
             player.setEntity(entity);
             player.setPosition(0, 130, 0);
 

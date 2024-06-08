@@ -13,23 +13,6 @@ import java.util.UUID;
 public class BetterEntity extends Entity implements NbtSerializable {
 
     public UUID uuid = UUID.randomUUID();
-    public transient Chunk chunk;
-    public transient boolean savable = true;
-
-    public int health = 100;
-    public int oxygen = 100;
-
-    public void hurt(int damage) {
-        health -= damage;
-    }
-
-    public void heal(int heal) {
-        health += heal;
-    }
-
-    public boolean dead() {
-        return health <= 0;
-    }
 
     public UUID uuid() {
         return uuid;
@@ -55,10 +38,6 @@ public class BetterEntity extends Entity implements NbtSerializable {
         return new ChunkCoords(chunkX, chunkY, chunkZ);
     }
 
-    public Chunk getChunk() {
-        return chunk;
-    }
-
     @Override
     public void write(CompoundTag nbt) {
         nbt.putString("uuid", uuid.toString());
@@ -79,9 +58,6 @@ public class BetterEntity extends Entity implements NbtSerializable {
         nbt.put("velocity", NbtUtil.serializeVector3(velocity));
         nbt.put("onceVelocity", NbtUtil.serializeVector3(onceVelocity));
         nbt.put("localBoundingBox", NbtUtil.serializeBoundingBox(localBoundingBox));
-        nbt.putBoolean("savable", savable);
-        nbt.putInt("health", health);
-        nbt.putInt("oxygen", oxygen);
     }
 
     @Override
@@ -104,9 +80,6 @@ public class BetterEntity extends Entity implements NbtSerializable {
         velocity = NbtUtil.deserializeVector3(nbt.get("velocity"));
         onceVelocity = NbtUtil.deserializeVector3(nbt.get("onceVelocity"));
         localBoundingBox = NbtUtil.deserializeBoundingBox(nbt.get("localBoundingBox"));
-        savable = nbt.getBoolean("savable");
-        health = nbt.getInt("health");
-        oxygen = nbt.getInt("oxygen");
     }
 
     @Override

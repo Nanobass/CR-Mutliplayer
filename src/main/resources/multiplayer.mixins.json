@@ -6,8 +6,10 @@
     "mixins": [
         "BlockGameMixin",
         "MainMenuMixin",
+        "PlayerControllerMixin",
         "WorldLoaderMixin",
         "interfaces.ChunkMixin",
+        "interfaces.PlayerMixin",
         "interfaces.WorldMixin",
         "interfaces.ZoneMixin"
     ],

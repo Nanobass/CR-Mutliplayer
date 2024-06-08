@@ -155,8 +155,12 @@ public class ChunkSerializer {
         chunk.setGenerated(true);
     }
 
-    public static void deserialize(ByteArrayTag tag, Chunk chunk) throws IOException {
-        readChunk(new DataInputStream(new ByteArrayInputStream(tag.getValue())), chunk);
+    public static void deserialize(ByteArrayTag tag, Chunk chunk) {
+        try {
+            readChunk(new DataInputStream(new ByteArrayInputStream(tag.getValue())), chunk);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static void saveConstantByte(DataOutput output, ISaveFileConstant item, int nullConstant) throws IOException {
@@ -198,14 +202,18 @@ public class ChunkSerializer {
         }
     }
 
-    public static ByteArrayTag serialize(Chunk chunk) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream dos = new DataOutputStream(baos);
-        writeBlockData(dos, chunk.blockData);
-        writeSkyLightData(dos, chunk.skyLightData);
-        writeBlockLightData(dos, chunk.blockLightData);
-        writeBlockEntities(dos, chunk);
-        return new ByteArrayTag(baos.toByteArray());
+    public static ByteArrayTag serialize(Chunk chunk) {
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(baos);
+            writeBlockData(dos, chunk.blockData);
+            writeSkyLightData(dos, chunk.skyLightData);
+            writeBlockLightData(dos, chunk.blockLightData);
+            writeBlockEntities(dos, chunk);
+            return new ByteArrayTag(baos.toByteArray());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }

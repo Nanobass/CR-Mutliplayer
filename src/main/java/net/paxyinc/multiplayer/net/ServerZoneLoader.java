@@ -1,20 +1,17 @@
 package net.paxyinc.multiplayer.net;
 
+import com.badlogic.gdx.math.Vector3;
 import finalforeach.cosmicreach.blocks.Block;
-import finalforeach.cosmicreach.blocks.BlockState;
-import finalforeach.cosmicreach.entities.Player;
-import finalforeach.cosmicreach.io.ChunkSaver;
 import finalforeach.cosmicreach.lighting.LightPropagator;
-import finalforeach.cosmicreach.savelib.blockdata.IBlockData;
-import finalforeach.cosmicreach.savelib.blockdata.SingleBlockData;
-import finalforeach.cosmicreach.savelib.blocks.IBlockDataFactory;
-import finalforeach.cosmicreach.util.Point3DMap;
 import finalforeach.cosmicreach.world.Chunk;
 import finalforeach.cosmicreach.world.Region;
 import finalforeach.cosmicreach.world.Zone;
+import io.netty.channel.Channel;
 import net.paxyinc.multiplayer.GameServer;
-import net.paxyinc.multiplayer.entities.BetterEntity;
-import net.paxyinc.multiplayer.interfaces.ZoneInterface;
+import net.paxyinc.multiplayer.interfaces.ChunkInterface;
+import net.paxyinc.multiplayer.net.events.ChunkModifyEvent;
+import net.paxyinc.multiplayer.net.events.ClientChunkModifyEvent;
+import net.paxyinc.multiplayer.net.events.ClientChunkUpdateEvent;
 import net.paxyinc.multiplayer.util.ChunkCoords;
 
 import java.util.*;
@@ -31,77 +28,52 @@ public class ServerZoneLoader extends ZoneLoader {
 
     @Override
     protected void loop() {
-        ZoneInterface zi = (ZoneInterface) zone;
-        Map<UUID, Player> players = zi.getPlayers();
+        List<ChunkCoords> loaded = getLoadedChunks();
+        List<ChunkCoords> toLoad = new ArrayList<>();
+        List<ChunkCoords> toUnload = new ArrayList<>();
+        calculateChunksToLoadAndUnload(toLoad, toUnload, loaded);
 
-        Set<ChunkCoords> toLoad = new HashSet<>();
-        for(Player player : players.values()) {
-            BetterEntity playerEntity = (BetterEntity) player.getEntity();
-            for(int localChunkX = -playerDistance; localChunkX < playerDistance; localChunkX++) {
-                for(int localChunkZ = -playerDistance; localChunkZ < playerDistance; localChunkZ++) {
-                    for(int localChunkY = -playerDistance; localChunkY < playerDistance; localChunkY++) {
-                        int chunkX = Math.floorDiv((int) playerEntity.position.x, 16) + localChunkX;
-                        int chunkY = Math.floorDiv((int) playerEntity.position.y, 16) + localChunkY;
-                        int chunkZ = Math.floorDiv((int) playerEntity.position.z, 16) + localChunkZ;
-                        toLoad.add(new ChunkCoords(chunkX, chunkY, chunkZ));
-                    }
-                }
-            }
-        }
+        Vector3 cameraPos = new Vector3(server.worldCamera.position);
+        toLoad.sort((o1, o2) -> ChunkCoords.compare(o1, o2, cameraPos));
+        toUnload.sort((o1, o2) -> -ChunkCoords.compare(o1, o2, cameraPos));
 
-        Point3DMap<Chunk> zoneChunks = zi.getChunks();
-
-        Set<ChunkCoords> loaded = new HashSet<>();
-        synchronized (zoneChunks) {
-            zoneChunks.forEach((c, x, y, z) -> {
-                loaded.add(new ChunkCoords(x, y, z));
-            });
-        }
-
-        Set<ChunkCoords> toUnload = new HashSet<>(loaded);
-        toUnload.removeAll(toLoad);
-        toLoad.removeAll(loaded);
-
-        Map<Region, List<Chunk>> chunkUnloadBuckets = new HashMap<>();
-        for(ChunkCoords coords : toUnload) {
-            Chunk chunk = zoneChunks.get(coords.x(), coords.y(), coords.z());
-            if(chunkUnloadBuckets.containsKey(chunk.region)) {
-                List<Chunk> bucket = chunkUnloadBuckets.get(chunk.region);
-                bucket.add(chunk);
-            } else {
-                List<Chunk> bucket = new ArrayList<>();
-                bucket.add(chunk);
-                chunkUnloadBuckets.put(chunk.region, bucket);
-            }
-        }
-
-        for(Map.Entry<Region, List<Chunk>> entry : chunkUnloadBuckets.entrySet()) {
-            Region region = entry.getKey();
+        for(Map.Entry<Region, List<Chunk>> entry : getRegionChunkBuckets(toUnload).entrySet()) {
             List<Chunk> chunks = entry.getValue();
-            //ChunkSaver.saveRegion(zone, region);
             chunks.forEach(zone::removeChunk);
         }
 
-        List<Chunk> chunkLoadBuckets = new ArrayList<>();
-        List<ChunkCoords> toGenerate = new ArrayList<>();
-        toGenerate.addAll(toLoad);
+        List<Chunk> newChunks = new ArrayList<>();
 
-        for(ChunkCoords coords : toGenerate) {
-
+        int limit = 256;
+        for(ChunkCoords coords : toLoad) {
             Chunk chunk = new Chunk(coords.x(), coords.y(), coords.z());
             chunk.initChunkData();
             chunk.fillLayer(Block.GRASS.getDefaultBlockState(), 0);
             chunk.setGenerated(true);
             zone.addChunk(chunk);
 
-            chunkLoadBuckets.add(chunk);
+            newChunks.add(chunk);
+            if(limit-- == 0) break;
         }
 
-        for(Chunk chunk : chunkLoadBuckets) {
+        for(Chunk chunk : newChunks) {
             lightProp.calculateLightingForChunk(zone, chunk, true);
             chunk.flagTouchingChunksForRemeshing(zone, false);
         }
 
+    }
+
+    @Override
+    public void onChunkModify(Chunk chunk) {
+        ChunkInterface ci = (ChunkInterface) chunk;
+        for(Channel client : server.clients) {
+            if(ci.hasTooManyChanges()) {
+
+            } else {
+                ChunkModifyEvent modify = new ChunkModifyEvent(client, chunk, ci.pollChunkChanges());
+                server.handler.send(modify);
+            }
+        }
     }
 
 }

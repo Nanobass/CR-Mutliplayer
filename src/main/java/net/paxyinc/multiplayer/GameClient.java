@@ -7,7 +7,6 @@ import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import dev.crmodders.flux.util.Reflection;
 import finalforeach.cosmicreach.blocks.BlockPosition;
-import finalforeach.cosmicreach.blocks.BlockState;
 import finalforeach.cosmicreach.entities.Player;
 import finalforeach.cosmicreach.entities.PlayerController;
 import finalforeach.cosmicreach.gamestates.GameState;
@@ -20,21 +19,20 @@ import finalforeach.cosmicreach.world.World;
 import finalforeach.cosmicreach.world.Zone;
 import finalforeach.cosmicreach.worldgen.ZoneGenerator;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import net.paxyinc.multiplayer.interfaces.ChunkInterface;
 import net.paxyinc.multiplayer.interfaces.WorldInterface;
 import net.paxyinc.multiplayer.interfaces.ZoneInterface;
 import net.paxyinc.multiplayer.net.*;
+import net.paxyinc.multiplayer.net.events.ChunkModifyEvent;
+import net.paxyinc.multiplayer.net.events.ChunkResponse;
+import net.paxyinc.multiplayer.util.ChunkDelta;
+import net.paxyinc.multiplayer.util.ChunkDeltaInfo;
 import net.paxyinc.multiplayer.util.CustomBlockSelection;
-import net.querz.nbt.io.NamedTag;
-import net.querz.nbt.tag.ByteArrayTag;
-import net.querz.nbt.tag.CompoundTag;
-import net.querz.nbt.tag.Tag;
+import org.greenrobot.eventbus.Subscribe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +54,8 @@ public class GameClient extends GameState {
     private EventLoopGroup workerGroup;
     private Bootstrap bootstrap;
     private ChannelFuture future;
+    public Channel server;
+    public CosmicReachProtocolClientHandler handler;
 
     public PlayerController playerController;
     public Player localPlayer;
@@ -82,6 +82,7 @@ public class GameClient extends GameState {
         workerGroup = new NioEventLoopGroup();
         bootstrap = new Bootstrap();
         try {
+            handler = new CosmicReachProtocolClientHandler(GameClient.this);
             bootstrap.group(workerGroup); // (2)
             bootstrap.channel(NioSocketChannel.class); // (3)
             bootstrap.option(ChannelOption.SO_KEEPALIVE, true); // (4)
@@ -91,10 +92,12 @@ public class GameClient extends GameState {
                     ch.pipeline().addLast(
                             new CosmicReachProtocolDecoder(),
                             new CosmicReachProtocolEncoder(),
-                            new CosmicReachProtocolClientHandler(GameClient.this));
+                            handler);
                 }
             });
+            handler.bus.register(this);
             future = bootstrap.connect(host, port).sync(); // (5)
+            server = future.channel();
             LOGGER.info("Client Started");
         } catch (Exception e) {
             e.printStackTrace();
@@ -165,11 +168,6 @@ public class GameClient extends GameState {
         super.dispose();
 
         zoneRenderer.unload();
-
-        WorldInterface wi = (WorldInterface) world;
-        for(UUID playerUUID : wi.getPlayers().keySet()) {
-            wi.unloadPlayer(playerUUID);
-        }
         localPlayer = null;
 
         try {
@@ -186,45 +184,28 @@ public class GameClient extends GameState {
         worldViewport.update(width, height);
     }
 
-    public void sendToServer(NamedTag tag) {
-        future.channel().writeAndFlush(tag);
+    @Subscribe
+    public void onEvent(ChunkResponse event) {
+        WorldInterface wi = (WorldInterface) world;
+        Zone zone = event.getZone(world);
+        ClientZoneLoader loader = (ClientZoneLoader) wi.getWorldLoader().getZoneLoader(zone);
+        if(event.isPresent()) {
+            loader.onChunkReceived(event.getChunkCoords(), event.getChunk());
+        } else {
+            loader.onChunkFailed(event.getChunkCoords());
+        }
     }
 
-    public void onMessageReceived(String id, Tag<?> tag) {
-        switch (id) {
-            case "onChunkReceive" -> {
-                CompoundTag message = (CompoundTag) tag;
-                String zoneId = message.getString("zone");
-                int[] chunkCoords = message.getIntArray("xyz");
-                ByteArrayTag serialized = message.getByteArrayTag("data");
-                try {
-                    Zone zone = world.getZone(zoneId);
-                    ClientZoneLoader zoneLoader = (ClientZoneLoader) ((WorldInterface) world).getWorldLoader().getZoneLoader(zone);
-                    Chunk chunk = new Chunk(chunkCoords[0], chunkCoords[1], chunkCoords[2]);
-                    ChunkSerializer.deserialize(serialized, chunk);
-                    chunk.setGenerated(true);
-                    zone.addChunk(chunk);
-                    zoneLoader.onChunkReceived(chunk);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-
-            case "onBlockStateModify" -> {
-                CompoundTag compound = (CompoundTag) tag;
-                String zoneId = compound.getString("zone");
-                int[] chunkCoords = compound.getIntArray("cXYZ");
-                int[] localCoords = compound.getIntArray("bXYZ");
-                BlockState oldState = BlockState.getInstance(compound.getString("old"));
-                BlockState newState = BlockState.getInstance(compound.getString("new"));
-                Zone zone = world.getZone(zoneId);
-                Chunk chunk = zone.getChunkAtChunkCoords(chunkCoords[0], chunkCoords[1], chunkCoords[2]);
-                BlockPosition position = new BlockPosition(chunk, localCoords[0], localCoords[1], localCoords[2]);
-                position.setBlockState(newState);
-                position.flagTouchingChunksForRemeshing(zone, true);
-            }
-
+    @Subscribe
+    public void onEvent(ChunkModifyEvent event) {
+        Chunk chunk = event.getChunk(world);
+        ChunkInterface ci = (ChunkInterface) chunk;
+        for(int i = 0; i < event.getNumberOfChanges(); i++) {
+            ChunkDelta delta = event.getDelta(chunk, i);
+            BlockPosition position = delta.position();
+            ci.setBlockStateDirect(delta.newState(), position.localX, position.localY, position.localZ);
         }
+        chunk.flagForRemeshing(true);
     }
 
 }

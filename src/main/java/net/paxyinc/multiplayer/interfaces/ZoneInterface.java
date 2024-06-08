@@ -4,6 +4,7 @@ import finalforeach.cosmicreach.entities.Player;
 import finalforeach.cosmicreach.util.Point3DMap;
 import finalforeach.cosmicreach.world.Chunk;
 import net.paxyinc.multiplayer.entities.BetterEntity;
+import net.paxyinc.multiplayer.net.ZoneLoader;
 
 import java.util.Map;
 import java.util.UUID;
@@ -22,5 +23,7 @@ public interface ZoneInterface {
     Map<UUID, BetterEntity> getEntities();
 
     Point3DMap<Chunk> getChunks();
+
+    ZoneLoader getZoneLoader();
 
 }

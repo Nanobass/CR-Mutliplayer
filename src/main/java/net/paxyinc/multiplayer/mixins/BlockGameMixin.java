@@ -2,6 +2,7 @@ package net.paxyinc.multiplayer.mixins;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Graphics;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.utils.BufferUtils;
 import finalforeach.cosmicreach.BlockGame;
@@ -111,6 +112,7 @@ public class BlockGameMixin {
         if (Controls.keyDebugReloadShadersJustPressed()) {
             ChunkShader.reloadAllShaders();
         }
+        if(Gdx.input.isKeyJustPressed(Input.Keys.F9)) GameSingletons.isAllFlaggedForRemeshing = true;
 
         if (Controls.keyFullscreenJustPressed()) {
             Graphics.DisplayMode displayMode = Gdx.graphics.getDisplayMode();
